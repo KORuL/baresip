@@ -128,14 +128,14 @@ static int init_encoder(struct videnc_state *st, const char *name)
 		return 0;
 	}
 
-	if (0 == str_casecmp(name, "h265")) {
-
-		st->codec = avcodec_h265enc;
-
-		info("avcodec: h265 encoder activated\n");
-
-		return 0;
-	}
+//	if (0 == str_casecmp(name, "h265")) {
+//
+//		st->codec = avcodec_h265enc;
+//
+//		info("avcodec: h265 encoder activated\n");
+//
+//		return 0;
+//	}
 
 	st->codec = avcodec_find_encoder(st->codec_id);
 	if (!st->codec)

@@ -8,8 +8,8 @@
 extern const AVCodec *avcodec_h264enc;
 extern const AVCodec *avcodec_h264dec;
 
-extern const AVCodec *avcodec_h265enc;
-extern const AVCodec *avcodec_h265dec;
+//extern const AVCodec *avcodec_h265enc;
+//extern const AVCodec *avcodec_h265dec;
 
 extern AVBufferRef *avcodec_hw_device_ctx;
 extern enum AVPixelFormat avcodec_hw_pix_fmt;
