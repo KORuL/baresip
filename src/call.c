@@ -820,7 +820,7 @@ int call_streams_alloc(struct call *call)
 				  call->cfg, call->sdp,
 				  acc->mnat, call->mnats,
 				  acc->menc, call->mencs,
-				  "main",
+				  NULL,
 				  account_vidcodecl(call->acc),
 				  baresip_vidfiltl(), !call->got_offer,
 				  video_error_handler, call);

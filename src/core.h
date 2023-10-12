@@ -93,6 +93,10 @@ struct account {
 	char *uas_pass;              /**< UAS authentication password        */
 	bool rtcp_mux;               /**< RTCP multiplexing                  */
 	bool pinhole;                /**< NAT pinhole flag                   */
+
+	bool sub_events;        /**< Add SUBSCRIBE to Allow:           */
+	bool norefersub;             /**< add_extension norefersub optional  */
+	bool replace;             /**< add_extension replace optional  */
 };
 
 

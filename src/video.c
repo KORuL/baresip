@@ -1115,8 +1115,8 @@ int video_alloc(struct video **vp, struct list *streaml,
 					 SDP_BANDWIDTH_AS, bps / 1000);
 	}
 
-	err |= sdp_media_set_lattr(stream_sdpmedia(v->strm), true,
-				   "framerate", "%.2f", v->cfg.fps);
+//	err |= sdp_media_set_lattr(stream_sdpmedia(v->strm), true,
+//				   "framerate", "%.2f", v->cfg.fps);
 
 	/* RFC 4585 */
 	err |= sdp_media_set_lattr(stream_sdpmedia(v->strm), true,
@@ -1126,10 +1126,10 @@ int video_alloc(struct video **vp, struct list *streaml,
 				   "rtcp-fb", "* nack pli");
 
 	/* RFC 4796 */
-	if (content) {
-		err |= sdp_media_set_lattr(stream_sdpmedia(v->strm), true,
-					   "content", "%s", content);
-	}
+//	if (content) {
+//		err |= sdp_media_set_lattr(stream_sdpmedia(v->strm), true,
+//					   "content", "%s", content);
+//	}
 
 	if (err)
 		goto out;
