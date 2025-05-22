@@ -99,6 +99,10 @@ struct account {
 	bool rtcp_mux;               /**< RTCP multiplexing                  */
 	bool pinhole;                /**< NAT pinhole flag                   */
 	bool catchall;               /**< Catch all inbound requests         */
+
+	bool sub_events;        /**< Add SUBSCRIBE to Allow:           */
+	bool norefersub;             /**< add_extension norefersub optional  */
+	bool replace;             /**< add_extension replace optional  */
 };
 
 
