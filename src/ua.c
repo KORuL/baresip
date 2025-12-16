@@ -153,8 +153,12 @@ static int create_register_clients(struct ua *ua)
 		err = reg_add(&ua->regl, ua, 0);
 	}
 
-	ua_add_extension(ua, "replaces");
-	ua_add_extension(ua, "norefersub");
+	if (ua->acc->replace) {
+		ua_add_extension(ua, "replaces");
+	}
+	if (ua->acc->norefersub) {
+		ua_add_extension(ua, "norefersub");
+	}
 
 	if (ua->acc->rel100_mode)
 		ua_add_extension(ua, "100rel");
@@ -2000,11 +2004,12 @@ int ua_print_allowed(struct re_printf *pf, const struct ua *ua)
 	if (!ua || !ua->acc)
 		return 0;
 
-	err = re_hprintf(pf,
-			 "INVITE,ACK,BYE,CANCEL,OPTIONS,"
-			 "NOTIFY,INFO,MESSAGE,UPDATE");
+	err = re_hprintf(pf, "INVITE,ACK,BYE,CANCEL,OPTIONS");
 
-	if (uag_subh())
+    if (ua->acc->sub_events)
+        err |= re_hprintf(pf, ",NOTIFY,INFO,MESSAGE,UPDATE");
+
+    if (uag_subh())
 		err |= re_hprintf(pf, ",SUBSCRIBE");
 
 	if (ua->acc->rel100_mode)
