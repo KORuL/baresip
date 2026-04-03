@@ -177,7 +177,9 @@ static void stop_tx(struct autx *tx, struct audio *a)
 	if (!tx || !a)
 		return;
 
-	stream_enable_tx(a->strm, false);
+	if (a->strm)
+		stream_enable_tx(a->strm, false);
+
 	if (re_atomic_rlx(&tx->thr.run)) {
 		re_atomic_rlx_set(&tx->thr.run, false);
 		thrd_join(tx->thr.tid, NULL);
@@ -247,18 +249,18 @@ static int add_audio_codec(struct sdp_media *m, struct aucodec *ac)
 
 	if (ac->ch == 0 || ac->pch == 0) {
 		warning("audio: illegal channels for audio codec '%s'\n",
-			ac->name);
+				ac->name);
 		return EINVAL;
 	}
 
 	return sdp_format_add(NULL, m, false, ac->pt, ac->name, ac->crate,
-			      ac->pch, ac->fmtp_ench, ac->fmtp_cmph, ac, false,
-			      "%s", ac->fmtp);
+			ac->pch, ac->fmtp_ench, ac->fmtp_cmph, ac, false,
+			"%s", ac->fmtp);
 }
 
 
 static int append_rtpext(struct audio *au, struct mbuf *mb,
-			 enum aufmt fmt, const void *sampv, size_t sampc)
+		enum aufmt fmt, const void *sampv, size_t sampc)
 {
 	uint8_t data[1];
 	double level;
@@ -286,7 +288,7 @@ static int append_rtpext(struct audio *au, struct mbuf *mb,
  * @note This function has REAL-TIME properties
  */
 static void encode_rtp_send(struct audio *a, struct autx *tx,
-			    struct auframe *af)
+		struct auframe *af)
 {
 	struct bundle *bun = stream_bundle(a->strm);
 	bool bundled = bundle_state(bun) != BUNDLE_NONE;
@@ -303,8 +305,8 @@ static void encode_rtp_send(struct audio *a, struct autx *tx,
 
 	if (tx->ac->srate != af->srate || tx->ac->ch != af->ch) {
 		warning("audio: srate/ch of frame %u/%u vs audio codec %u/%u. "
-			"Use module auresamp!\n",
-			af->srate, af->ch, tx->ac->srate, tx->ac->ch);
+				"Use module auresamp!\n",
+				af->srate, af->ch, tx->ac->srate, tx->ac->ch);
 		return;
 	}
 
@@ -317,7 +319,7 @@ static void encode_rtp_send(struct audio *a, struct autx *tx,
 
 		if (a->level_enabled) {
 			err = append_rtpext(a, tx->mb, af->fmt,
-					    af->sampv, af->sampc);
+					af->sampv, af->sampc);
 			if (err)
 				return;
 		}
@@ -326,7 +328,7 @@ static void encode_rtp_send(struct audio *a, struct autx *tx,
 			const char *mid = stream_mid(a->strm);
 
 			rtpext_encode(tx->mb, bundle_extmap_mid(bun),
-				      str_len(mid), (void *)mid);
+					str_len(mid), (void *)mid);
 		}
 
 		ext_len = tx->mb->pos - STREAM_PRESZ;
@@ -345,7 +347,7 @@ static void encode_rtp_send(struct audio *a, struct autx *tx,
 	len = mbuf_get_space(tx->mb);
 
 	err = tx->ac->ench(tx->enc, &marker, mbuf_buf(tx->mb), &len,
-			   af->fmt, af->sampv, af->sampc);
+			af->fmt, af->sampv, af->sampc);
 
 	if ((err & 0xffff0000) == 0x00010000) {
 
@@ -370,7 +372,7 @@ static void encode_rtp_send(struct audio *a, struct autx *tx,
 		if (len) {
 			mtx_lock(a->tx.mtx);
 			err = stream_send(a->strm, ext_len!=0, marker, -1,
-					  rtp_ts, tx->mb);
+					rtp_ts, tx->mb);
 			mtx_unlock(a->tx.mtx);
 			if (err)
 				goto out;
@@ -398,7 +400,7 @@ static void encode_rtp_send(struct audio *a, struct autx *tx,
 	tx->ts_ext += (uint32_t)frame_size;
 	mtx_unlock(a->tx.mtx);
 
- out:
+	out:
 	tx->marker = false;
 }
 
@@ -446,9 +448,9 @@ static void poll_aubuf_tx(struct audio *a)
 
 	if (af.fmt != tx->enc_fmt) {
 		warning("audio: tx: invalid sample formats (%s -> %s). %s\n",
-			aufmt_name(af.fmt), aufmt_name(tx->enc_fmt),
-			tx->enc_fmt == AUFMT_S16LE ? "Use module auconv!" : ""
-			);
+				aufmt_name(af.fmt), aufmt_name(tx->enc_fmt),
+				tx->enc_fmt == AUFMT_S16LE ? "Use module auconv!" : ""
+		);
 	}
 
 	/* Encode and send */
@@ -534,9 +536,9 @@ static void ausrc_read_handler(struct auframe *af, void *arg)
 
 	if (fmt != af->fmt) {
 		warning("audio: ausrc format mismatch:"
-			" expected=%d(%s), actual=%d(%s)\n",
-			fmt, aufmt_name(tx->src_fmt),
-			af->fmt, aufmt_name(af->fmt));
+				" expected=%d(%s), actual=%d(%s)\n",
+				fmt, aufmt_name(tx->src_fmt),
+				af->fmt, aufmt_name(af->fmt));
 		return;
 	}
 
@@ -548,13 +550,13 @@ static void ausrc_read_handler(struct auframe *af, void *arg)
 		++tx->stats.aubuf_overrun;
 
 		debug("audio: tx aubuf overrun (total %llu)\n",
-		      tx->stats.aubuf_overrun);
+				tx->stats.aubuf_overrun);
 	}
 
 	(void)aubuf_write_auframe(tx->aubuf, af);
 
 	if (!re_atomic_rlx(&tx->aubuf_started) &&
-	    (aubuf_cur_size(tx->aubuf) >= psize)) {
+			(aubuf_cur_size(tx->aubuf) >= psize)) {
 		re_atomic_rlx_set(&tx->aubuf_started, true);
 	}
 }
@@ -650,9 +652,9 @@ static int add_telev_codec(struct audio *a)
 
 	/* Use payload-type 101 if available, for CiscoGW interop */
 	err = sdp_format_add(&sf, m, false,
-			     add ? pts : NULL,
-			     telev_rtpfmt, TELEV_SRATE, 1, NULL,
-			     NULL, NULL, false, "0-15");
+			add ? pts : NULL,
+			telev_rtpfmt, TELEV_SRATE, 1, NULL,
+			NULL, NULL, false, "0-15");
 	if (err)
 		return err;
 
@@ -704,7 +706,7 @@ int audio_alloc(struct audio **ap, struct list *streaml,
 
 	if (ptime < 1 || ptime > MAX_PTIME) {
 		warning("audio: ptime %ums out of range (%ums - %ums)\n",
-			ptime, 1, MAX_PTIME);
+				ptime, 1, MAX_PTIME);
 		return ENOTSUP;
 	}
 
@@ -721,11 +723,11 @@ int audio_alloc(struct audio **ap, struct list *streaml,
 	tx->enc_fmt = cfg->audio.enc_fmt;
 
 	err = stream_alloc(&a->strm, streaml,
-			   stream_prm, &cfg->avt, sdp_sess,
-			   MEDIA_AUDIO,
-			   mnat, mnat_sess, menc, menc_sess, offerer,
-			   stream_recv_handler, NULL, stream_pt_handler,
-			   a);
+			stream_prm, &cfg->avt, sdp_sess,
+			MEDIA_AUDIO,
+			mnat, mnat_sess, menc, menc_sess, offerer,
+			stream_recv_handler, NULL, stream_pt_handler,
+			a);
 	if (err)
 		goto out;
 
@@ -735,8 +737,8 @@ int audio_alloc(struct audio **ap, struct list *streaml,
 
 	if (cfg->avt.rtp_bw.max) {
 		sdp_media_set_lbandwidth(stream_sdpmedia(a->strm),
-					 SDP_BANDWIDTH_AS,
-					 AUDIO_BANDWIDTH / 1000);
+				SDP_BANDWIDTH_AS,
+				AUDIO_BANDWIDTH / 1000);
 	}
 
 	/* Audio codecs */
@@ -753,9 +755,9 @@ int audio_alloc(struct audio **ap, struct list *streaml,
 	}
 
 	err  = sdp_media_set_lattr(stream_sdpmedia(a->strm), true,
-				   "minptime", "%u", minptime);
+			"minptime", "%u", minptime);
 	err |= sdp_media_set_lattr(stream_sdpmedia(a->strm), true,
-				   "ptime", "%u", ptime);
+			"ptime", "%u", ptime);
 	if (err)
 		goto out;
 
@@ -763,7 +765,7 @@ int audio_alloc(struct audio **ap, struct list *streaml,
 	tx->mb = mbuf_alloc(STREAM_PRESZ + 4096);
 	tx->mb_telev = mbuf_alloc(STREAM_PRESZ + 64);
 	tx->sampv = mem_zalloc(AUDIO_SAMPSZ * aufmt_sample_size(tx->enc_fmt),
-			       NULL);
+			NULL);
 
 	if (!tx->mb || !tx->mb_telev || !tx->sampv) {
 		err = ENOMEM;
@@ -787,7 +789,7 @@ int audio_alloc(struct audio **ap, struct list *streaml,
 		tx->device = mem_ref(acc->ausrc_dev);
 
 		info("audio: using account specific source: (%s,%s)\n",
-		     tx->module, tx->device);
+				tx->module, tx->device);
 	}
 	else {
 		err  = str_dup(&tx->module, a->cfg.src_mod);
@@ -807,7 +809,7 @@ int audio_alloc(struct audio **ap, struct list *streaml,
 			goto out;
 
 		info("audio: using account specific player: (%s,%s)\n",
-		     acc->auplay_mod, acc->auplay_dev);
+				acc->auplay_mod, acc->auplay_dev);
 	}
 	else {
 		err  = aurecv_set_module(a->aur, a->cfg.play_mod);
@@ -825,7 +827,7 @@ int audio_alloc(struct audio **ap, struct list *streaml,
 	a->errh    = errh;
 	a->arg     = arg;
 
- out:
+	out:
 	if (err)
 		mem_deref(a);
 	else
@@ -844,9 +846,9 @@ int audio_enable_level(struct audio *au)
 	aurecv_set_extmap(au->aur, au->extmap_aulevel);
 
 	return sdp_media_set_lattr(stream_sdpmedia(au->strm), false,
-				   "extmap",
-				   "%u %s",
-				   au->extmap_aulevel, uri_aulevel);
+			"extmap",
+			"%u %s",
+			au->extmap_aulevel, uri_aulevel);
 }
 
 
@@ -894,7 +896,7 @@ static int tx_thread(void *arg)
 			mtx_unlock(tx->mtx);
 
 			debug("audio: thread: tx aubuf underrun"
-			      " (total %llu)\n", tx->stats.aubuf_underrun);
+				  " (total %llu)\n", tx->stats.aubuf_underrun);
 		}
 
 		ts += tx->ptime;
@@ -904,7 +906,7 @@ static int tx_thread(void *arg)
 		 */
 		check_telev(a, tx);
 
-loop:
+		loop:
 		mtx_lock(tx->mtx);
 	}
 
@@ -914,7 +916,7 @@ loop:
 
 
 static void aufilt_param_set(struct aufilt_prm *prm,
-			     const struct aucodec *ac, enum aufmt fmt)
+		const struct aucodec *ac, enum aufmt fmt)
 {
 	prm->srate      = ac->srate;
 	prm->ch         = ac->ch;
@@ -931,7 +933,7 @@ static int autx_print_pipeline(struct re_printf *pf, const struct autx *autx)
 		return 0;
 
 	err = re_hprintf(pf, "audio tx pipeline:  %10s",
-			 autx->as ? autx->as->name : "(src)");
+			autx->as ? autx->as->name : "(src)");
 
 	err |= re_hprintf(pf, " ---> aubuf");
 	for (le = list_head(&autx->filtl); le; le = le->next) {
@@ -942,7 +944,7 @@ static int autx_print_pipeline(struct re_printf *pf, const struct autx *autx)
 	}
 
 	err |= re_hprintf(pf, " ---> %s",
-			  autx->ac ? autx->ac->name : "(encoder)");
+			autx->ac ? autx->ac->name : "(encoder)");
 
 	return err;
 }
@@ -996,7 +998,7 @@ static int aufilt_setup(struct audio *a, struct list *aufiltl)
 			err = af->encupdh(&encst, &ctx, af, &encprm, a);
 			if (err) {
 				warning("audio: error in encode audio-filter"
-					" '%s' (%m)\n", af->name, err);
+						" '%s' (%m)\n", af->name, err);
 			}
 			else {
 				encst->af = af;
@@ -1010,7 +1012,7 @@ static int aufilt_setup(struct audio *a, struct list *aufiltl)
 			err = af->decupdh(&decst, &ctx, af, &plprm, a);
 			if (err) {
 				warning("audio: error in decode audio-filter"
-					" '%s' (%m)\n", af->name, err);
+						" '%s' (%m)\n", af->name, err);
 			}
 			else {
 				decst->af = af;
@@ -1020,7 +1022,7 @@ static int aufilt_setup(struct audio *a, struct list *aufiltl)
 
 		if (err) {
 			warning("audio: audio-filter '%s'"
-				" update failed (%m)\n", af->name, err);
+					" update failed (%m)\n", af->name, err);
 			break;
 		}
 	}
@@ -1055,10 +1057,10 @@ static int start_source(struct autx *tx, struct audio *a, struct list *ausrcl)
 		size_t sz;
 		size_t psize_alloc;
 		struct ausrc_prm prm = {
-			.srate      = srate_dsp,
-			.ch         = channels_dsp,
-			.ptime      = tx->ptime,
-			.fmt        = tx->src_fmt
+				.srate      = srate_dsp,
+				.ch         = channels_dsp,
+				.ptime      = tx->ptime,
+				.fmt        = tx->src_fmt
 		};
 
 		tx->ausrc_prm = prm;
@@ -1071,18 +1073,18 @@ static int start_source(struct autx *tx, struct audio *a, struct list *ausrcl)
 
 		if (!tx->aubuf) {
 			err = aubuf_alloc(&tx->aubuf, tx->psize,
-					  tx->aubuf_maxsz);
+					tx->aubuf_maxsz);
 			if (err)
 				return err;
 		}
 
 		err = ausrc_alloc(&tx->ausrc, ausrcl,
-				  tx->module,
-				  &prm, tx->device,
-				  ausrc_read_handler, ausrc_error_handler, a);
+				tx->module,
+				&prm, tx->device,
+				ausrc_read_handler, ausrc_error_handler, a);
 		if (err) {
 			warning("audio: start_source failed (%s.%s): %m\n",
-				tx->module, tx->device, err);
+					tx->module, tx->device, err);
 			return err;
 		}
 
@@ -1095,7 +1097,7 @@ static int start_source(struct autx *tx, struct audio *a, struct list *ausrcl)
 			tx->ausrc_prm = prm;
 			tx->aubuf_maxsz = tx->psize * 30;
 			err = aubuf_resize(tx->aubuf, tx->psize,
-					   tx->aubuf_maxsz);
+					tx->aubuf_maxsz);
 			if (err) {
 				mtx_unlock(tx->mtx);
 				return err;
@@ -1108,17 +1110,17 @@ static int start_source(struct autx *tx, struct audio *a, struct list *ausrcl)
 		if (!re_atomic_rlx(&tx->thr.run)) {
 			re_atomic_rlx_set(&tx->thr.run, true);
 			err = thread_create_name(&tx->thr.tid,
-						 "Audio TX",
-						 tx_thread, a);
+					"Audio TX",
+					tx_thread, a);
 			if (err) {
 				re_atomic_rlx_set(&tx->thr.run,
-						  false);
+						false);
 				return err;
 			}
 		}
 
 		info("audio: source started with sample format %s\n",
-		     aufmt_name(tx->src_fmt));
+				aufmt_name(tx->src_fmt));
 	}
 
 	stream_enable_tx(a->strm, true);
@@ -1209,8 +1211,8 @@ int audio_update(struct audio *a)
 
 		if (!a->started) {
 			info("%H\n%H\n",
-			     autx_print_pipeline, &a->tx,
-			     aurecv_print_pipeline, a->aur);
+					autx_print_pipeline, &a->tx,
+					aurecv_print_pipeline, a->aur);
 		}
 
 		a->started = true;
@@ -1230,7 +1232,7 @@ int audio_update(struct audio *a)
  * @return 0 if success, otherwise errorcode
  */
 int audio_start_source(struct audio *a, struct list *ausrcl,
-		       struct list *aufiltl)
+		struct list *aufiltl)
 {
 	int err;
 
@@ -1307,7 +1309,7 @@ bool audio_started(const struct audio *a)
  * @return 0 if success, otherwise errorcode
  */
 int audio_encoder_set(struct audio *a, const struct aucodec *ac,
-		      int pt_tx, const char *params)
+		int pt_tx, const char *params)
 {
 	struct autx *tx;
 	int err = 0;
@@ -1319,7 +1321,7 @@ int audio_encoder_set(struct audio *a, const struct aucodec *ac,
 
 	if (ac != tx->ac) {
 		info("audio: Set audio encoder: %s %uHz %dch\n",
-		     ac->name, ac->srate, ac->ch);
+				ac->name, ac->srate, ac->ch);
 
 		/* Should the source be stopped first? */
 		if (!aucodec_equal(ac, tx->ac)) {
@@ -1379,7 +1381,7 @@ int audio_encoder_set(struct audio *a, const struct aucodec *ac,
  * @return 0 if success, otherwise errorcode
  */
 int audio_decoder_set(struct audio *a, const struct aucodec *ac,
-		      int pt, const char *params)
+		int pt, const char *params)
 {
 	int err = 0;
 	bool reset = false;
@@ -1458,7 +1460,7 @@ int audio_send_digit(struct audio *a, char key)
 		info("audio: send DTMF digit end: '%c'\n", a->tx.cur_key);
 		mtx_lock(a->tx.mtx);
 		err = telev_send(a->telev,
-				 telev_digit2code(a->tx.cur_key), true);
+				telev_digit2code(a->tx.cur_key), true);
 		mtx_unlock(a->tx.mtx);
 	}
 
@@ -1518,7 +1520,7 @@ static bool extmap_handler(const char *name, const char *value, void *arg)
 
 		if (extmap.id < RTPEXT_ID_MIN || extmap.id > RTPEXT_ID_MAX) {
 			warning("audio: extmap id out of range (%u)\n",
-				extmap.id);
+					extmap.id);
 			return false;
 		}
 
@@ -1526,10 +1528,10 @@ static bool extmap_handler(const char *name, const char *value, void *arg)
 		aurecv_set_extmap(a->aur, a->extmap_aulevel);
 
 		err = sdp_media_set_lattr(stream_sdpmedia(a->strm), true,
-					  "extmap",
-					  "%u %s",
-					  a->extmap_aulevel,
-					  uri_aulevel);
+				"extmap",
+				"%u %s",
+				a->extmap_aulevel,
+				uri_aulevel);
 		if (err)
 			return false;
 
@@ -1556,10 +1558,10 @@ void audio_sdp_attr_decode(struct audio *a)
 		uint32_t ptime_tx = atoi(attr);
 
 		if (ptime_tx && ptime_tx != a->tx.ptime
-		    && ptime_tx <= MAX_PTIME) {
+				&& ptime_tx <= MAX_PTIME) {
 
 			info("audio: peer changed ptime_tx %ums -> %ums\n",
-			     a->tx.ptime, ptime_tx);
+					a->tx.ptime, ptime_tx);
 
 			tx->ptime = ptime_tx;
 
@@ -1569,20 +1571,20 @@ void audio_sdp_attr_decode(struct audio *a)
 				sz = aufmt_sample_size(tx->src_fmt);
 
 				tx->psize = sz * au_calc_nsamp(tx->ac->srate,
-							    tx->ac->ch,
-							    ptime_tx);
+						tx->ac->ch,
+						ptime_tx);
 			}
 
 			sdp_media_set_lattr(stream_sdpmedia(a->strm), true,
-					    "ptime", "%u", ptime_tx);
+					"ptime", "%u", ptime_tx);
 		}
 	}
 
 	/* Client-to-Mixer Audio Level Indication */
 	if (a->cfg.level) {
 		sdp_media_rattr_apply(stream_sdpmedia(a->strm),
-				      "extmap",
-				      extmap_handler, a);
+				"extmap",
+				extmap_handler, a);
 	}
 }
 
@@ -1653,33 +1655,33 @@ int audio_debug(struct re_printf *pf, const struct audio *a)
 	err  = re_hprintf(pf, "%s", "\n--- Audio stream ---\n");
 
 	err |= re_hprintf(pf, " tx:   encode: %H ptime=%ums %s\n",
-			  aucodec_print, tx->ac,
-			  tx->ptime,
-			  aufmt_name(tx->enc_fmt));
+			aucodec_print, tx->ac,
+			tx->ptime,
+			aufmt_name(tx->enc_fmt));
 	err |= re_hprintf(pf, "       aubuf: %H"
-			  " (cur %.2fms, max %.2fms, or %llu, ur %llu)\n",
-			  aubuf_debug, tx->aubuf,
-			  calc_ptime(aubuf_cur_size(tx->aubuf)/sztx,
-				     tx->ausrc_prm.srate,
-				     tx->ausrc_prm.ch),
-			  calc_ptime(tx->aubuf_maxsz/sztx,
-				     tx->ausrc_prm.srate,
-				     tx->ausrc_prm.ch),
-			  tx->stats.aubuf_overrun,
-			  tx->stats.aubuf_underrun);
+						  " (cur %.2fms, max %.2fms, or %llu, ur %llu)\n",
+			aubuf_debug, tx->aubuf,
+			calc_ptime(aubuf_cur_size(tx->aubuf)/sztx,
+					tx->ausrc_prm.srate,
+					tx->ausrc_prm.ch),
+			calc_ptime(tx->aubuf_maxsz/sztx,
+					tx->ausrc_prm.srate,
+					tx->ausrc_prm.ch),
+			tx->stats.aubuf_overrun,
+			tx->stats.aubuf_underrun);
 	err |= re_hprintf(pf, "       source: %s,%s %s\n",
-			  tx->as ? tx->as->name : "none",
-			  tx->device,
-			  aufmt_name(tx->src_fmt));
+			tx->as ? tx->as->name : "none",
+			tx->device,
+			aufmt_name(tx->src_fmt));
 	err |= re_hprintf(pf, "       time = %.3f sec\n",
-			  autx_calc_seconds(tx));
+			autx_calc_seconds(tx));
 
 	err |= aurecv_debug(pf, a->aur);
 	err |= re_hprintf(pf,
-			  " %H\n"
-			  " %H\n",
-			  autx_print_pipeline, tx,
-			  aurecv_print_pipeline, a->aur);
+			" %H\n"
+			" %H\n",
+			autx_print_pipeline, tx,
+			aurecv_print_pipeline, a->aur);
 
 	err |= stream_debug(pf, a->strm);
 
@@ -1739,11 +1741,11 @@ int audio_set_source(struct audio *au, const char *mod, const char *device)
 	if (str_isset(mod)) {
 
 		err = ausrc_alloc(&tx->ausrc, baresip_ausrcl(),
-				  mod, &tx->ausrc_prm, device,
-				  ausrc_read_handler, ausrc_error_handler, au);
+				mod, &tx->ausrc_prm, device,
+				ausrc_read_handler, ausrc_error_handler, au);
 		if (err) {
 			warning("audio: set_source failed (%s.%s): %m\n",
-				mod, device, err);
+					mod, device, err);
 			return err;
 		}
 
@@ -1781,10 +1783,10 @@ int audio_set_player(struct audio *a, const char *mod, const char *device)
 		goto out;
 
 	err = aurecv_start_player(a->aur, baresip_auplayl());
-out:
+	out:
 	if (err) {
 		warning("audio: set player failed (%s.%s): %m\n",
-			mod, device, err);
+				mod, device, err);
 		return err;
 	}
 
@@ -1814,8 +1816,8 @@ int audio_set_bitrate(struct audio *au, uint32_t bitrate)
 	ac = tx->ac;
 
 	info("audio: set bitrate for encoder '%s' to %u bits/s\n",
-	     ac ? ac->name : "?",
-	     bitrate);
+			ac ? ac->name : "?",
+			bitrate);
 
 	if (ac) {
 
