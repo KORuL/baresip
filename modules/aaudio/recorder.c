@@ -337,7 +337,9 @@ static int open_recorder_stream(struct ausrc_state *state,
 	AAudioStreamBuilder_setDataCallback(builder, &dataCallback, state);
 	AAudioStreamBuilder_setErrorCallback(builder, &errorCallback, state);
 
+	aaudio_lock();
 	result = AAudioStreamBuilder_openStream(builder, &stream);
+	aaudio_unlock();
 	AAudioStreamBuilder_delete(builder);
 	if (result != AAUDIO_OK) {
 		warning("aaudio: recorder: failed to open stream: error %s\n",
@@ -428,6 +430,7 @@ static int recorder_control_thread(void *arg)
 			aaudio_close_stream(pending);
 		if (published)
 			aaudio_close_stream(published);
+		sys_msleep(20);
 
 		if (atomic_load(&state->closing))
 			continue;
@@ -491,6 +494,7 @@ static int recorder_control_thread(void *arg)
 		aaudio_close_stream(pending);
 	if (published)
 		aaudio_close_stream(published);
+	sys_msleep(20);
 
 	atomic_store(&state->ctl_exited, true);
 	mem_deref(state);
